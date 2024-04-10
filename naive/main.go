@@ -19,8 +19,8 @@ var measurementsFile = flag.String(
 
 func main() {
 	flag.Parse()
+	defer trackTime(time.Now(), "main")
 
-	defer trackTime(time.Now())
 	file, err := os.Open(*measurementsFile)
 	if err != nil {
 		panic(err)
@@ -31,12 +31,11 @@ func main() {
 	for scanner.Scan() {
 		split := strings.SplitN(scanner.Text(), ";", 2)
 		station := split[0]
-		measurement64, err := strconv.ParseFloat(split[1], 32)
+		measurement, err := strconv.ParseFloat(split[1], 32)
 		if err != nil {
 			panic(err)
 		}
 
-		measurement := float32(measurement64)
 		stats, ok := stations[station]
 		if !ok {
 			stations[station] = &StationStats{
@@ -54,37 +53,39 @@ func main() {
 				stats.Max = measurement
 			}
 
-			stats.Mean = (stats.Mean*float32(stats.Count) + measurement) / (float32(stats.Count) + 1)
+			stats.Mean = (stats.Mean*float64(stats.Count) + measurement) / (float64(stats.Count) + 1)
 			stats.Count += 1
 		}
 	}
 
-	sorted := sortedKeys(stations)
+	sorted := sortKeys(stations)
 	fmt.Print("{")
 	for i, key := range sorted {
 		stats := stations[key]
-		if i == 0 {
-			fmt.Printf("%s=%.1f/%.1f/%.1f", key, stats.Min, stats.Mean, stats.Max)
-		} else {
-			fmt.Printf(", %s=%.1f/%.1f/%.1f", key, stats.Min, stats.Mean, stats.Max)
+		if i != 0 {
+			fmt.Print(", ")
 		}
+
+		fmt.Printf("%s=%.1f/%.1f/%.1f", key, stats.Min, stats.Mean, stats.Max)
 	}
 	fmt.Println("}")
 }
 
 type StationStats struct {
-	Min   float32
-	Max   float32
-	Mean  float32
+	Min   float64
+	Max   float64
+	Mean  float64
 	Count int
 }
 
-func trackTime(start time.Time) {
+func trackTime(start time.Time, name string) {
 	elapsed := time.Since(start)
-	fmt.Fprintf(os.Stderr, "timed execution finished: elapsed=%s\n", elapsed)
+	fmt.Fprintf(os.Stderr, "timed execution finished: name=%s, elapsed=%s\n", name, elapsed)
 }
 
-func sortedKeys[V any](m map[string]V) []string {
+func sortKeys[V any](m map[string]V) []string {
+	defer trackTime(time.Now(), "sortedKeys")
+
 	i := 0
 	keys := make([]string, len(m))
 	for key := range m {
