@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: 3
+vars:
+  temp_dir: ./.tmp
+  measurements: ./1brc/measurements.txt
+
+tasks:
+  calculate-baseline:
+    status: [test -f .baseline]
+    cmds:
+      - cd ./1brc/ && ./calculate_average_baseline.sh > ../.baseline
+
+  measure:
+    internal: true
+    deps: [calculate-baseline]
+    cmds:
+      - mkdir -p {{ .temp_dir }}
+      - go build -o {{ .temp_dir }}/{{ .NAME }} ./{{ .NAME }}/main.go
+      - "{{ .temp_dir }}/{{ .NAME }} -measurements {{ .measurements }} > {{ .temp_dir }}/{{ .NAME }}-result"
+      - cmp .baseline {{ .temp_dir }}/{{ .NAME }}-result
+
+  measure-naive:
+    - task: measure
+      vars: { NAME: "naive" }
