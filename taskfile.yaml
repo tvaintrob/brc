@@ -2,24 +2,24 @@
 
 version: 3
 vars:
-  temp_dir: ./.tmp
-  measurements: ./1brc/measurements.txt
+  root: { sh: git rev-parse --show-toplevel }
+  temp_dir: "{{ .root }}/.tmp"
+  measurements: "{{ .root }}/1brc/measurements.txt"
 
 tasks:
   calculate-baseline:
-    status: [test -f .baseline]
+    status: ["test -f {{ .root }}/.baseline"]
+    dir: "{{ .root }}/1brc"
     cmds:
-      - cd ./1brc/ && ./calculate_average_baseline.sh > ../.baseline
+      - ./calculate_average_baseline.sh > {{ .root }}/.baseline
 
   measure:
-    internal: true
+    label: measure-{{ .name }}
     deps: [calculate-baseline]
+    preconditions:
+      - test ! -z "{{ .name }}"
     cmds:
       - mkdir -p {{ .temp_dir }}
-      - go build -o {{ .temp_dir }}/{{ .NAME }} ./{{ .NAME }}/main.go
-      - "{{ .temp_dir }}/{{ .NAME }} -measurements {{ .measurements }} > {{ .temp_dir }}/{{ .NAME }}-result"
-      - cmp .baseline {{ .temp_dir }}/{{ .NAME }}-result
-
-  measure-naive:
-    - task: measure
-      vars: { NAME: "naive" }
+      - go build -C {{ .name }} -o {{ .temp_dir }}/{{ .name }} .
+      - "{{ .temp_dir }}/{{ .name }} -measurements {{ .measurements }} > {{ .temp_dir }}/{{ .name }}-result"
+      - cmp .baseline {{ .temp_dir }}/{{ .name }}-result
