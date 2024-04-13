@@ -4,7 +4,7 @@ version: 3
 vars:
   root: { sh: git rev-parse --show-toplevel }
   temp_dir: "{{ .root }}/.tmp"
-  measurements: "{{ .root }}/1brc/measurements.txt"
+  measurements: "{{ .root }}/1brc/measurements_1000000000.txt"
 
 tasks:
   calculate-baseline:
@@ -23,3 +23,12 @@ tasks:
       - go build -C {{ .name }} -o {{ .temp_dir }}/{{ .name }} .
       - "{{ .temp_dir }}/{{ .name }} -measurements {{ .measurements }} > {{ .temp_dir }}/{{ .name }}-result"
       - cmp .baseline {{ .temp_dir }}/{{ .name }}-result
+
+  compare:
+    cmds:
+      - mkdir -p {{ .temp_dir }}
+      - go build -C {{ .a }} -o {{ .temp_dir }}/{{ .a }}
+      - go build -C {{ .b }} -o {{ .temp_dir }}/{{ .b }}
+      - "{{ .temp_dir }}/{{ .a }} -measurements {{ .measurements }} > {{ .temp_dir }}/{{ .a }}-result"
+      - "{{ .temp_dir }}/{{ .b }} -measurements {{ .measurements }} > {{ .temp_dir }}/{{ .b }}-result"
+      - cmp {{ .temp_dir }}/{{ .a }}-result {{ .temp_dir }}/{{ .b }}-result
