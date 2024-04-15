@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,13 +20,14 @@ var measurementsFile = flag.String(
 )
 
 type StationStats struct {
-	Min   float64
-	Max   float64
-	Sum   float64
+	Min   int
+	Max   int
+	Sum   int
 	Count int
 }
 
 var workerCount = runtime.NumCPU() * 10
+var chunkSize = 1024 * 1024 * 50
 
 func main() {
 	flag.Parse()
@@ -38,8 +38,8 @@ func main() {
 		panic(err)
 	}
 
-	chunks := splitToChunks(file, 1024*1024*50) // 500 mb chunks
-	processors := make([]<-chan map[string]*StationStats, 0, runtime.NumCPU())
+	chunks := splitToChunks(file, chunkSize)
+	processors := make([]<-chan map[string]*StationStats, 0, workerCount)
 	for range workerCount {
 		processors = append(processors, processChunks(chunks))
 	}
@@ -109,11 +109,8 @@ func processChunks(chunks <-chan []byte) <-chan map[string]*StationStats {
 			for scanner.Scan() {
 				split := strings.SplitN(scanner.Text(), ";", 2)
 				station := split[0]
-				measurement, err := strconv.ParseFloat(split[1], 32)
-				if err != nil {
-					panic(err)
-				}
 
+				measurement := bytesToInt([]byte(split[1]))
 				stats, ok := stations[station]
 				if !ok {
 					stations[station] = &StationStats{
